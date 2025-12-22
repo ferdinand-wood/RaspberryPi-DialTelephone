@@ -631,6 +631,19 @@ class Phone{
         this.handleEvent('Number dialed (complete)',number);
         return;
     }
+
+      // Start recording via web UI
+    startWebRecording(filename) {
+        this.soundInput.startRecording(filename);
+        this.recording = true;
+    }
+
+    // Stop recording via web UI and return length in ms (or null)
+    stopWebRecording() {
+        this.soundInput.stopRecording();
+        this.recording = false;
+        return this.soundInput.getRecordingLengthInMillis();
+    }
     
     acceptMessage(message){
         this.handleEvent('Incoming message',message);

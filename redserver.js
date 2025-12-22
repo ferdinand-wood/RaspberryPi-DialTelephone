@@ -47,3 +47,26 @@ phone.ding();
 
 app.listen(port, () => console.log("Server started"));
 
+
+// Start a recording (returns JSON)
+app.post('/startRecording', (req, res) => {
+  const filename = req.body.filename || `./recordings/web_recording_${Date.now()}.wav`;
+  try {
+    phone.startWebRecording(filename);
+    res.json({ ok: true, filename });
+  } catch (err) {
+    console.error(`Start recording failed: ${err}`);
+    res.status(500).json({ ok: false, err: err.message || String(err) });
+  }
+});
+
+// Stop a recording (returns JSON with length)
+app.post('/stopRecording', (req, res) => {
+  try {
+    const lengthInMs = phone.stopWebRecording();
+    res.json({ ok: true, lengthInMs });
+  } catch (err) {
+    console.error(`Stop recording failed: ${err}`);
+    res.status(500).json({ ok: false, err: err.message || String(err) });
+  }
+});

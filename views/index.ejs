@@ -32,6 +32,8 @@
         </form>
     </div>
 
+    <div id="status" class="container mt-2"></div>
+
     <div class="container mb-4">
         <form action="/sendQuestion" method="POST">
             <div>
@@ -54,5 +56,71 @@
     <div class="container mt-3">
        <p> <%= message %> </p> 
     </div>
+
+
+
+
+<script>
+  (function () {
+    const startBtn = document.getElementById('micStartButton');
+    const stopBtn = document.getElementById('micStopButton');
+    const status = document.getElementById('status');
+
+    function setStatus(text) {
+      status.innerText = text;
+    }
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+      setStatus('Starting recording...');
+      try {
+        const resp = await fetch('/startRecording', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const j = await resp.json();
+        if (j.ok) {
+          setStatus(`Recording started: ${j.filename}`);
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } else {
+          setStatus(`Error starting recording: ${j.err}`);
+          startBtn.disabled = false;
+        }
+      } catch (err) {
+        setStatus(`Network error: ${err}`);
+        startBtn.disabled = false;
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        setStatus('Stopping recording...');
+        try {
+            const resp = await fetch('/stopRecording', { method: 'POST' });
+            const j = await resp.json();
+            if (j.ok) {
+            setStatus(`Recording stopped — length ${j.lengthInMs ?? 'unknown'} ms`);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            } else {
+            setStatus(`Error stopping recording: ${j.err}`);
+            stopBtn.disabled = false;
+            }
+        } catch (err) {
+            setStatus(`Network error: ${err}`);
+            stopBtn.disabled = false;
+        }
+    });
+
+    // initial state
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  })();
+</script>
+
 </body>
 </html>
