@@ -71,7 +71,7 @@ class Phone{
         this.randomCallTimeoutMillis = 10000;
         this.incomingSpeechDelayMillis = 1000;
         this.recordPromptDelayMillis = 1500;
-        this.recordMaximumLengthMillis = 10000;
+        this.recordMaximumLengthMillis = 20 * 60 * 1000; // max non-mailbox recording length (20 minutes)
         this.receiveRingDelayMillis = 500;
         this.playbackMessageDelayMillis = 0;
         this.playbackMessageTimeoutMillis = 60000;
@@ -80,7 +80,9 @@ class Phone{
         // Mailbox flow timing (wait a few seconds after pickup, then play intro, then record)
         this.mailboxWaitMillis = 2000; // wait after handset picked up before playing intro
         this.mailboxIntroDelayMillis = 1000; // wait after intro before starting recording
-        this.mailboxMaximumLengthMillis = 60000; // max mailbox recording length
+        this.mailboxMaximumLengthMillis = 0.5 * 60 * 1000; // max mailbox recording length (20 minutes)
+        this.recordingTimeoutMillis = 5000; // grace period after hitting max duration
+        this.recordingTimeoutStart = null;
 
         this.questionText = null;
         this.dialing=false;
@@ -529,7 +531,9 @@ class Phone{
                             this.ringer.ding();
                             // Clear temp mailbox limit if it was set
                             this._recordingMaxMillis = null;
-                            return 'REST';
+                            // Start timeout state so we do not jump straight to REST
+                            this.recordingTimeoutStart = new Date();
+                            return 'RECORDING_TIMEOUT';
                         }
                     }
                     // Continue recording
@@ -687,10 +691,26 @@ class Phone{
                         if (waitTime>this.recordMaximumLengthMillis){
                             this.soundInput.stopRecording();
                             this.ringer.ding();
-                            return 'REST';
+                            this.recordingTimeoutStart = new Date();
+                            return 'RECORDING_TIMEOUT';
                         }
                     }
                     return 'RECORDING_QUESTION';
+                }
+            },
+            RECORDING_TIMEOUT: {
+                'Handset replaced': () => {
+                    this.ringer.ding();
+                    this.recordingTimeoutStart = null;
+                    return 'REST';
+                },
+                'Timer tick': (date) => {
+                    // After a short grace period, fall back to REST even if handset not replaced
+                    if (this.recordingTimeoutStart && (date - this.recordingTimeoutStart) > this.recordingTimeoutMillis) {
+                        this.recordingTimeoutStart = null;
+                        return 'REST';
+                    }
+                    return 'RECORDING_TIMEOUT';
                 }
             },
             DOING_SPEECH_TO_TEXT:{
