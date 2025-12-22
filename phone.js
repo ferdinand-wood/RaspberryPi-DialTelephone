@@ -632,9 +632,9 @@ class Phone{
         return;
     }
 
-      // Start recording via web UI
-    startWebRecording(filename) {
-        this.soundInput.startRecording(filename);
+      // Start recording via web UI (accept optional options object e.g. { device: 'plughw:3,0' })
+    startWebRecording(filename, opts = {}) {
+        this.soundInput.startRecording(filename, opts);
         this.recording = true;
     }
 

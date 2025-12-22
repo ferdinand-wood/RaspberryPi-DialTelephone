@@ -46,8 +46,18 @@
 
     <div class="container mb-4">
         <h5>Microphone</h5>
+        <div class="form-row mb-2">
+          <div class="col">
+            <label for="deviceSelect">Capture device</label>
+            <select id="deviceSelect" class="form-control">
+              <option value="">System default</option>
+            </select>
+          </div>
+          <div class="col-3 d-flex align-items-end">
+            <button id="refreshDevices" type="button" class="btn btn-outline-secondary btn-block">Refresh</button>
+          </div>
+        </div>
         <div class="btn-group w-100" role="group" aria-label="Microphone controls">
-            <!-- Blind buttons (no functionality yet) -->
             <button id="micStartButton" type="button" class="btn btn-success">Start Recording</button>
             <button id="micStopButton" type="button" class="btn btn-danger">Stop Recording</button>
         </div>
@@ -65,33 +75,68 @@
     const startBtn = document.getElementById('micStartButton');
     const stopBtn = document.getElementById('micStopButton');
     const status = document.getElementById('status');
+    const refreshBtn = document.getElementById('refreshDevices');
+    const deviceSelect = document.getElementById('deviceSelect');
 
     function setStatus(text) {
       status.innerText = text;
     }
 
+    async function fetchDevices(){
+      try {
+        refreshBtn.disabled = true;
+        const resp = await fetch('/devices');
+        const devices = await resp.json();
+        // Clear existing options (keep first default)
+        deviceSelect.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.text = 'System default';
+        deviceSelect.appendChild(defaultOption);
+        for (const d of devices){
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.text = d.label;
+          deviceSelect.appendChild(opt);
+        }
+      } catch (err){
+        console.error('Failed to fetch devices:', err);
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    refreshBtn.addEventListener('click', (e) => {
+      fetchDevices();
+    });
+
     startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
       stopBtn.disabled = true;
+      refreshBtn.disabled = true;
       setStatus('Starting recording...');
       try {
+        const selectedDevice = deviceSelect.value || null;
+        const body = selectedDevice ? { device: selectedDevice } : {};
         const resp = await fetch('/startRecording', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify(body)
         });
         const j = await resp.json();
         if (j.ok) {
-          setStatus(`Recording started: ${j.filename}`);
+          setStatus(`Recording started: ${j.filename}${j.device ? ' (device: ' + j.device + ')' : ''}`);
           startBtn.disabled = true;
           stopBtn.disabled = false;
         } else {
           setStatus(`Error starting recording: ${j.err}`);
           startBtn.disabled = false;
+          refreshBtn.disabled = false;
         }
       } catch (err) {
         setStatus(`Network error: ${err}`);
         startBtn.disabled = false;
+        refreshBtn.disabled = false;
       }
     });
 
@@ -106,19 +151,23 @@
             setStatus(`Recording stopped — length ${j.lengthInMs ?? 'unknown'} ms`);
             startBtn.disabled = false;
             stopBtn.disabled = true;
+            refreshBtn.disabled = false;
             } else {
             setStatus(`Error stopping recording: ${j.err}`);
             stopBtn.disabled = false;
+            refreshBtn.disabled = false;
             }
         } catch (err) {
             setStatus(`Network error: ${err}`);
             stopBtn.disabled = false;
+            refreshBtn.disabled = false;
         }
     });
 
     // initial state
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    fetchDevices();
   })();
 </script>
 

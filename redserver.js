@@ -48,12 +48,44 @@ phone.ding();
 app.listen(port, () => console.log("Server started"));
 
 
+// Return available capture devices (uses arecord -l if available)
+app.get('/devices', (req, res) => {
+  const { exec } = require('child_process');
+  exec('arecord -l', (err, stdout, stderr) => {
+    if (err){
+      console.warn(`arecord not available or failed: ${err}`);
+      return res.json([]);
+    }
+    const devices = [];
+    const lines = stdout.split('\n');
+    // Parse lines like: card 3: Device [USB Audio Device], device 0: USB Audio [USB Audio]
+    for (const line of lines){
+      const m = line.match(/card\s+(\d+):\s*([^,]+),\s*device\s+(\d+):\s*(.+)$/i);
+      if (m){
+        const card = m[1];
+        const cardName = m[2].trim();
+        const deviceNum = m[3];
+        const deviceName = m[4].trim();
+        const id = `plughw:${card},${deviceNum}`;
+        const label = `card ${card}: ${cardName} - device ${deviceNum}: ${deviceName}`;
+        devices.push({ id, label });
+      }
+    }
+    res.json(devices);
+  });
+});
+
 // Start a recording (returns JSON)
 app.post('/startRecording', (req, res) => {
   const filename = req.body.filename || `./recordings/web_recording_${Date.now()}.wav`;
+  const device = req.body.device || process.env.SOUND_DEVICE;
   try {
-    phone.startWebRecording(filename);
-    res.json({ ok: true, filename });
+    if (device) {
+      phone.startWebRecording(filename, { device });
+    } else {
+      phone.startWebRecording(filename);
+    }
+    res.json({ ok: true, filename, device: device || null });
   } catch (err) {
     console.error(`Start recording failed: ${err}`);
     res.status(500).json({ ok: false, err: err.message || String(err) });
