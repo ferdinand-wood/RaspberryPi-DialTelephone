@@ -56,6 +56,12 @@ class Phone{
         this.playbackMessageDelayMillis = 0;
         this.playbackMessageTimeoutMillis = 60000;
         this.questionMessageDelayMillis = 0;
+
+        // Mailbox flow timing (wait a few seconds after pickup, then play intro, then record)
+        this.mailboxWaitMillis = 2000; // wait after handset picked up before playing intro
+        this.mailboxIntroDelayMillis = 1000; // wait after intro before starting recording
+        this.mailboxMaximumLengthMillis = 60000; // max mailbox recording length
+
         this.questionText = null;
         this.dialing=false;
         this.recording=false;
@@ -70,9 +76,9 @@ class Phone{
         this.stateActions = {
             REST: {
                 'Handset picked up': () => { 
-                    this.ringer.ding();
-                    this.soundOutput.playFile('./sounds/dialTone.wav');
-                    return 'DIAL_TONE'; 
+                    // Start mailbox flow: wait a short time, play intro, then record until handset replaced
+                    this.recordMessageTimerDate = new Date();
+                    return 'MAILBOX_WAIT'; 
                 },
                 'Handset replaced': () => { 
                     this.soundOutput.stopPlayback();
@@ -389,6 +395,68 @@ class Phone{
                         }
                     }
                     return 'RECORD_PROMPT_MESSAGE_PLAYING';
+                }
+            },
+
+            // Mailbox flow: after handset pickup
+            MAILBOX_WAIT: {
+                'Handset replaced': () => {
+                    // cancelled before intro
+                    return 'REST';
+                },
+                'Timer tick': (date) => {
+                    if(this.recordMessageTimerDate){
+                        let waitTime = date - this.recordMessageTimerDate;
+                        if (waitTime>this.mailboxWaitMillis){
+                            // play mailbox intro
+                            this.recordMessageTimerDate = new Date();
+                            this.soundOutput.stopPlayback();
+                            this.soundOutput.playFile('./sounds/mailbox_intro.wav');
+                            return 'MAILBOX_INTRO_PLAYING';
+                        }
+                    }
+                    return 'MAILBOX_WAIT';
+                }
+            },
+
+            MAILBOX_INTRO_PLAYING: {
+                'Handset replaced': () => {
+                    // cancelled during intro
+                    this.soundOutput.stopPlayback();
+                    return 'REST';
+                },
+                'Timer tick': (date) => {
+                    if(this.recordMessageTimerDate){
+                        let waitTime = date - this.recordMessageTimerDate;
+                        if (waitTime>this.mailboxIntroDelayMillis){
+                            this.recordMessageTimerDate = new Date();
+                            // start mailbox recording
+                            this.soundInput.startRecording(`./recordings/mailbox.wav`);
+                            return 'MAILBOX_RECORDING';
+                        }
+                    }
+                    return 'MAILBOX_INTRO_PLAYING';
+                }
+            },
+
+            MAILBOX_RECORDING: {
+                'Handset replaced': () => { 
+                    // stop the mailbox recording
+                    this.soundInput.stopRecording();
+                    this.ringer.ding();
+                    return 'REST'; 
+                },
+
+                'Timer tick': (date) => {
+                    if(this.recordMessageTimerDate){
+                        let waitTime = date - this.recordMessageTimerDate;
+                        if (waitTime>this.mailboxMaximumLengthMillis){
+                            this.soundInput.stopRecording();
+                            this.ringer.ding();
+                            return 'REST';
+                        }
+                    }
+                    return 'MAILBOX_RECORDING';
                 }
             },
             RECORDING_MESSAGE:{
