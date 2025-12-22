@@ -26,6 +26,22 @@ class Phone{
         let result = Math.floor(Math.random() * (range)) + min;
         return result;
         }
+    /**
+     * Generate a timestamped filename with pattern: prefix_yymmdd_hhmmssms.wav
+     * @param {string} prefix - filename prefix (e.g., 'mailbox')
+     * @returns {string} - full path: ./recordings/prefix_yymmdd_hhmmssms.wav
+     */
+    getTimestampedFilename(prefix) {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        const ms = String(now.getMilliseconds()).padStart(3, '0');
+        return `./recordings/${prefix}_${yy}${mm}${dd}_${hh}${min}${ss}${ms}.wav`;
+    }
     
     async delay(timeInMs) {
         return new Promise(async (kept, broken) => {
@@ -478,7 +494,7 @@ class Phone{
                             console.log('Starting mailbox recording');
                             // Start recording to the mailbox file (shared recording state will handle stop)
                             // Use configured/default device if present
-                            this.startWebRecording(`./recordings/mailbox.wav`);
+                            this.startWebRecording(this.getTimestampedFilename('mailbox'));
                             // Clear the dynamic intro delay now that it's been used
                             this._mailboxIntroDelayMillis = null;
                             // Reuse the shared recording state for mailbox recordings
