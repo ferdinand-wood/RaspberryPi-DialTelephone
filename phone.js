@@ -6,6 +6,9 @@ const SoundInput = require('./helpers/soundInput');
 const SpeechOutput = require('./helpers/speechOutput');
 const SpeechInput = require('./helpers/speechInput');
 const LLM = require('./helpers/LLM');
+const fs = require('fs');
+
+
 
 class Phone{
 
@@ -399,83 +402,118 @@ class Phone{
             },
 
             // Mailbox flow: after handset pickup
+            // The flow is: pickup -> MAILBOX_WAIT -> MAILBOX_INTRO_PLAYING -> RECORDING_MESSAGE
             MAILBOX_WAIT: {
+                // If the user puts the handset back before the mailbox intro starts,
+                // cancel the mailbox flow and return to REST.
                 'Handset replaced': () => {
                     // cancelled before intro
                     return 'REST';
                 },
                 'Timer tick': (date) => {
+                    // Only proceed if we have a reference timestamp (set at pickup)
                     if(this.recordMessageTimerDate){
+                        // Compute elapsed time since the handset was picked up
                         let waitTime = date - this.recordMessageTimerDate;
+                        // When the wait exceeds the configured mailbox wait time, start the intro
                         if (waitTime>this.mailboxWaitMillis){
-                            // play mailbox intro
+                            // Mark the time we started the intro (used by the intro state)
                             this.recordMessageTimerDate = new Date();
+                            // Ensure no other playback is active so intro is clean
                             this.soundOutput.stopPlayback();
+
+                            // Use the SoundOutput helper to get duration asynchronously.
+                            // Initialize to static delay as a sensible default while the async query runs.
+                            this._mailboxIntroDelayMillis = this.mailboxIntroDelayMillis;
+                            // Probe the file duration asynchronously and update the delay when available
+                            this.soundOutput.getDuration('./sounds/mailbox_intro.wav')
+                              .then((durMs) => {
+                                if (durMs && durMs > 0 && durMs < 10 * 60 * 1000) { // 10 minute sanity cap
+                                  this._mailboxIntroDelayMillis = durMs;
+                                  console.log(`Mailbox intro duration set to ${durMs} ms based on file`);
+                                } else {
+                                  console.warn('Mailbox intro duration invalid or too long; keeping static mailboxIntroDelayMillis');
+                                }
+                              })
+                              .catch((err) => {
+                                console.warn(`Failed to get mailbox intro duration: ${err}. Keeping static mailboxIntroDelayMillis`);
+                              });
+
+                            // Play the mailbox intro audio file immediately
                             this.soundOutput.playFile('./sounds/mailbox_intro.wav');
+                            // Move into the intro-playing state
                             return 'MAILBOX_INTRO_PLAYING';
                         }
                     }
+                    // Stay in the waiting state until condition met or handset replaced
                     return 'MAILBOX_WAIT';
                 }
             },
 
             MAILBOX_INTRO_PLAYING: {
+                // If the handset is replaced during the intro, stop playback and abort
                 'Handset replaced': () => {
                     // cancelled during intro
                     this.soundOutput.stopPlayback();
+                    // Clear any dynamically computed intro delay
+                    this._mailboxIntroDelayMillis = null;
                     return 'REST';
                 },
                 'Timer tick': (date) => {
+                    // Only proceed if we have the intro start timestamp
                     if(this.recordMessageTimerDate){
+                        // Compute elapsed time since intro started
                         let waitTime = date - this.recordMessageTimerDate;
-                        if (waitTime>this.mailboxIntroDelayMillis){
+                        // Use computed intro duration if available, otherwise fallback to static
+                        const introDelay = (typeof this._mailboxIntroDelayMillis === 'number') ? this._mailboxIntroDelayMillis : this.mailboxIntroDelayMillis;
+                        // After the intro's duration elapses, start recording
+                        if (waitTime>introDelay){
+                            // Record the time when recording starts
                             this.recordMessageTimerDate = new Date();
-                            // start mailbox recording
+                            // Use a temporary max-recording limit for mailbox recordings
+                            this._recordingMaxMillis = this.mailboxMaximumLengthMillis;
+                            // Log for debugging - indicates mailbox recording start
+                            console.log('Starting mailbox recording');
+                            // Start recording to the mailbox file (shared recording state will handle stop)
                             this.soundInput.startRecording(`./recordings/mailbox.wav`);
-                            return 'MAILBOX_RECORDING';
+                            // Clear the dynamic intro delay now that it's been used
+                            this._mailboxIntroDelayMillis = null;
+                            // Reuse the shared recording state for mailbox recordings
+                            return 'RECORDING_MESSAGE';
                         }
                     }
+                    // Continue playing the intro until the delay expires or handset replaced
                     return 'MAILBOX_INTRO_PLAYING';
                 }
             },
 
-            MAILBOX_RECORDING: {
-                'Handset replaced': () => { 
-                    // stop the mailbox recording
-                    this.soundInput.stopRecording();
-                    this.ringer.ding();
-                    return 'REST'; 
-                },
 
-                'Timer tick': (date) => {
-                    if(this.recordMessageTimerDate){
-                        let waitTime = date - this.recordMessageTimerDate;
-                        if (waitTime>this.mailboxMaximumLengthMillis){
-                            this.soundInput.stopRecording();
-                            this.ringer.ding();
-                            return 'REST';
-                        }
-                    }
-                    return 'MAILBOX_RECORDING';
-                }
-            },
             RECORDING_MESSAGE:{
+                // When handset is replaced while recording, stop recording and clear mailbox temp limits
                 'Handset replaced': () => { 
                     this.ringer.ding(); 
                     this.soundInput.stopRecording();
                     this.recordMessageCallStart = null;
+                    // clear any temporary recording limits (e.g., mailbox)
+                    this._recordingMaxMillis = null;
                     return 'REST'; 
                 },
 
                 'Timer tick': (date) => {
+                    // Enforce either the mailbox-specific max or the default record max
                     if(this.recordMessageTimerDate){
                         let waitTime = date - this.recordMessageTimerDate;
-                        if (waitTime>this.recordMaximumLengthMillis){
+                        const maxLen = this._recordingMaxMillis || this.recordMaximumLengthMillis;
+                        // If we've exceeded the selected max recording length, stop
+                        if (waitTime>maxLen){
                             this.soundInput.stopRecording();
                             this.ringer.ding();
+                            // Clear temp mailbox limit if it was set
+                            this._recordingMaxMillis = null;
                             return 'REST';
                         }
                     }
+                    // Continue recording
                     return 'RECORDING_MESSAGE';
                 }
             },
