@@ -5,6 +5,7 @@ app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
 const Phone = require('./phone');
+const config = require('./helpers/config');
 
 let phone = new Phone();
 
@@ -75,10 +76,27 @@ app.get('/devices', (req, res) => {
   });
 });
 
+// Return current saved config (useful for UI)
+app.get('/config', (req, res) => {
+  res.json(config.all());
+});
+
+// Save default device
+app.post('/config/device', (req, res) => {
+  const device = req.body.device;
+  if (!device || typeof device !== 'string'){
+    return res.status(400).json({ ok: false, err: 'device required' });
+  }
+  config.set('soundDevice', device);
+  config.save();
+  res.json({ ok: true, device });
+});
+
 // Start a recording (returns JSON)
 app.post('/startRecording', (req, res) => {
   const filename = req.body.filename || `./recordings/web_recording_${Date.now()}.wav`;
-  const device = req.body.device || process.env.SOUND_DEVICE;
+  // Priority: explicit request -> saved config -> env var
+  const device = req.body.device || config.get('soundDevice') || process.env.SOUND_DEVICE;
   try {
     if (device) {
       phone.startWebRecording(filename, { device });

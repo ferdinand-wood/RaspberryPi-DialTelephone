@@ -7,6 +7,7 @@ const SpeechOutput = require('./helpers/speechOutput');
 const SpeechInput = require('./helpers/speechInput');
 const LLM = require('./helpers/LLM');
 const fs = require('fs');
+const config = require('./helpers/config');
 
 
 
@@ -393,7 +394,8 @@ class Phone{
                         let waitTime = date - this.recordMessageTimerDate;
                         if (waitTime>this.recordPromptDelayMillis){
                             this.recordMessageTimerDate = new Date();
-                            this.soundInput.startRecording(`./recordings/message.wav`);
+                            // Use configured/default device if present
+                            this.startWebRecording(`./recordings/message.wav`);
                             return 'RECORDING_MESSAGE';
                         }
                     }
@@ -475,7 +477,8 @@ class Phone{
                             // Log for debugging - indicates mailbox recording start
                             console.log('Starting mailbox recording');
                             // Start recording to the mailbox file (shared recording state will handle stop)
-                            this.soundInput.startRecording(`./recordings/mailbox.wav`);
+                            // Use configured/default device if present
+                            this.startWebRecording(`./recordings/mailbox.wav`);
                             // Clear the dynamic intro delay now that it's been used
                             this._mailboxIntroDelayMillis = null;
                             // Reuse the shared recording state for mailbox recordings
@@ -645,7 +648,8 @@ class Phone{
                         let waitTime = date - this.questionMessageTimer;
                         if (waitTime>this.recordPromptDelayMillis){
                             this.questionMessageTimer = new Date();
-                            this.soundInput.startRecording(`./recordings/question.wav`);
+                            // Use configured/default device if present
+                            this.startWebRecording(`./recordings/question.wav`);
                             return 'RECORDING_QUESTION';
                         }
                     }
@@ -740,7 +744,13 @@ class Phone{
 
       // Start recording via web UI (accept optional options object e.g. { device: 'plughw:3,0' })
     startWebRecording(filename, opts = {}) {
-        this.soundInput.startRecording(filename, opts);
+        // Determine device: explicit option -> configured default -> env var -> undefined
+        const device = opts.device || config.get('soundDevice') || process.env.SOUND_DEVICE;
+        if (device){
+          this.soundInput.startRecording(filename, { device });
+        } else {
+          this.soundInput.startRecording(filename, {});
+        }
         this.recording = true;
     }
 

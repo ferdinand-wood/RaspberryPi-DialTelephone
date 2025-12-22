@@ -52,6 +52,10 @@
             <select id="deviceSelect" class="form-control">
               <option value="">System default</option>
             </select>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" id="saveDefaultDevice">
+              <label class="form-check-label" for="saveDefaultDevice">Save as default</label>
+            </div>
           </div>
           <div class="col-3 d-flex align-items-end">
             <button id="refreshDevices" type="button" class="btn btn-outline-secondary btn-block">Refresh</button>
@@ -82,7 +86,7 @@
       status.innerText = text;
     }
 
-    async function fetchDevices(){
+    async function fetchDevices(defaultDevice){
       try {
         refreshBtn.disabled = true;
         const resp = await fetch('/devices');
@@ -99,6 +103,10 @@
           opt.text = d.label;
           deviceSelect.appendChild(opt);
         }
+        // If a default device is provided, try to set it
+        if (defaultDevice){
+          deviceSelect.value = defaultDevice;
+        }
       } catch (err){
         console.error('Failed to fetch devices:', err);
       } finally {
@@ -107,8 +115,20 @@
     }
 
     refreshBtn.addEventListener('click', (e) => {
-      fetchDevices();
+      fetchConfigAndDevices();
     });
+
+    async function fetchConfigAndDevices(){
+      try{
+        const resp = await fetch('/config');
+        const cfg = await resp.json();
+        const defaultDevice = cfg.soundDevice || null;
+        await fetchDevices(defaultDevice);
+      } catch (err){
+        console.error('Failed to fetch config:', err);
+        await fetchDevices();
+      }
+    }
 
     startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
@@ -126,6 +146,27 @@
         const j = await resp.json();
         if (j.ok) {
           setStatus(`Recording started: ${j.filename}${j.device ? ' (device: ' + j.device + ')' : ''}`);
+          // If user asked to save as default, persist
+          const saveDefault = document.getElementById('saveDefaultDevice').checked;
+          if (saveDefault && selectedDevice){
+            try{
+              const sresp = await fetch('/config/device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device: selectedDevice })
+              });
+              const sj = await sresp.json();
+              if (!sj.ok) {
+                console.warn('Failed to save default device', sj);
+              } else {
+                setStatus(`Default device saved: ${sj.device}`);
+              }
+            } catch(err){
+              console.warn('Failed to save default device', err);
+              setStatus('Failed to save default device');
+            }
+          }
+
           startBtn.disabled = true;
           stopBtn.disabled = false;
         } else {
