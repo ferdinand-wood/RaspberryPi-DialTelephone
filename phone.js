@@ -606,7 +606,7 @@ class Phone{
     // Master event handler
     handleEvent(event, data = null) {
         this.eventCounter++;
-        console.log(`${this.eventCounter} Event '${event}' fired in state '${this.state}'`);
+        //console.log(`${this.eventCounter} Event '${event}' fired in state '${this.state}'`);
         if (this.stateActions[this.state] && this.stateActions[this.state][event]) {
         this.state = this.stateActions[this.state][event](data);
         console.log(`   state changed to '${this.state}'`);
