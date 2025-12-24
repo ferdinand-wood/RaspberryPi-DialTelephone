@@ -98,9 +98,8 @@ class Phone{
         this.stateActions = {
             REST: {
                 'Handset picked up': () => { 
-                    // Start mailbox flow: wait a short time, play intro, then record until handset replaced
-                    this.recordMessageTimerDate = new Date();
-                    return 'MAILBOX_WAIT'; 
+                    this.ringer.ding();
+                    return 'PRE_DIAL_TONE'; 
                 },
                 'Handset replaced': () => { 
                     this.soundOutput.stopPlayback();
@@ -226,6 +225,18 @@ class Phone{
                 }
             },
 
+            PRE_DIAL_TONE: {
+                'Handset replaced': () => {
+                    this.soundOutput.stopPlayback();
+                    this.ringer.ding();
+                    return 'REST';
+                },
+                'Timer tick': (date) => {
+                    this.soundOutput.playFile('./sounds/dialTone.wav');
+                    return 'DIAL_TONE';
+                }
+            },
+
             DIAL_TONE: {
                 'Handset replaced': () => { 
                     this.ringer.ding(); 
@@ -280,7 +291,7 @@ class Phone{
                             this.soundOutput.playFile('./sounds/ringingTone.wav');
                             this.recordMessageTimerDate = new Date();
                             this.receiveRingDelayMillis = this.getRandom(1000,3000);
-                            return 'RECORD_PICKUP_DELAY';
+                            return 'MAILBOX_WAIT';
                         case 4: // Playback a message
                             this.soundOutput.playFile('./sounds/ringingTone.wav');
                             this.playbackMessageTimerDate = new Date();
@@ -422,50 +433,46 @@ class Phone{
             },
 
             // Mailbox flow: after handset pickup
-            // The flow is: pickup -> MAILBOX_WAIT -> MAILBOX_INTRO_PLAYING -> RECORDING_MESSAGE
-            MAILBOX_WAIT: {
-                // If the user puts the handset back before the mailbox intro starts,
-                // cancel the mailbox flow and return to REST.
+            // The flow is: pickup -> MAILBOX_INTRO -> MAILBOX_WAIT -> MAILBOX_INTRO_PLAYING -> RECORDING_MESSAGE
+            MAILBOX_INTRO: {
+                // Initialize timer for mailbox flow
                 'Handset replaced': () => {
-                    // cancelled before intro
+                    // User hung up before mailbox flow started
+                    this.recordMessageTimerDate = null;
                     return 'REST';
                 },
                 'Timer tick': (date) => {
-                    // Only proceed if we have a reference timestamp (set at pickup)
-                    if(this.recordMessageTimerDate){
-                        // Compute elapsed time since the handset was picked up
-                        let waitTime = date - this.recordMessageTimerDate;
-                        // When the wait exceeds the configured mailbox wait time, start the intro
-                        if (waitTime>this.mailboxWaitMillis){
-                            // Mark the time we started the intro (used by the intro state)
-                            this.recordMessageTimerDate = new Date();
-                            // Ensure no other playback is active so intro is clean
-                            this.soundOutput.stopPlayback();
+                    // Set the timer and immediately transition to MAILBOX_WAIT
+                    this.recordMessageTimerDate = new Date();
+                    return 'MAILBOX_WAIT';
+                }
+            },
 
-                            // Use the SoundOutput helper to get duration asynchronously.
-                            // Initialize to static delay as a sensible default while the async query runs.
-                            this._mailboxIntroDelayMillis = this.mailboxIntroDelayMillis;
-                            // Probe the file duration asynchronously and update the delay when available
-                            this.soundOutput.getDuration('./sounds/mailbox_intro.wav')
-                              .then((durMs) => {
-                                if (durMs && durMs > 0 && durMs < 10 * 60 * 1000) { // 10 minute sanity cap
-                                  this._mailboxIntroDelayMillis = durMs;
-                                  console.log(`Mailbox intro duration set to ${durMs} ms based on file`);
-                                } else {
-                                  console.warn('Mailbox intro duration invalid or too long; keeping static mailboxIntroDelayMillis');
+            MAILBOX_WAIT: {
+                'Handset replaced': () => 'REST',
+                'Timer tick': (date) => {
+                    if(!this.recordMessageTimerDate) return 'MAILBOX_WAIT';
+                    
+                    const waitTime = date - this.recordMessageTimerDate;
+                    if (waitTime > this.mailboxWaitMillis){
+                        const introFile = './sounds/mailbox_ansage.wav';
+                        this.recordMessageTimerDate = new Date();
+                        this.soundOutput.stopPlayback();
+                        
+                        // Fetch actual intro duration, fallback to configured delay
+                        this._mailboxIntroDelayMillis = this.mailboxIntroDelayMillis;
+                        this.soundOutput.getDuration(introFile)
+                            .then(durMs => {
+                                if (durMs > 0 && durMs < 600000) { // 10 min cap
+                                    this._mailboxIntroDelayMillis = durMs;
+                                    console.log(`Mailbox intro duration: ${durMs} ms`);
                                 }
-                              })
-                              .catch((err) => {
-                                console.warn(`Failed to get mailbox intro duration: ${err}. Keeping static mailboxIntroDelayMillis`);
-                              });
+                            })
+                            .catch(err => console.warn(`Mailbox intro duration fetch failed: ${err}`));
 
-                            // Play the mailbox intro audio file immediately
-                            this.soundOutput.playFile('./sounds/mailbox_intro.wav');
-                            // Move into the intro-playing state
-                            return 'MAILBOX_INTRO_PLAYING';
-                        }
+                        this.soundOutput.playFile(introFile);
+                        return 'MAILBOX_INTRO_PLAYING';
                     }
-                    // Stay in the waiting state until condition met or handset replaced
                     return 'MAILBOX_WAIT';
                 }
             },
@@ -561,8 +568,7 @@ class Phone{
             RANDOM_CALL_DELAY: {
                 'Handset picked up': () => { 
                     this.ringer.ding(); 
-                    this.soundOutput.playFile('./sounds/dialTone.wav');
-                    return 'DIAL_TONE'; 
+                    return 'PRE_DIAL_TONE'; 
                 },
                 'Timer tick': (date) => {
                     if(this.randomCallStart != null){
