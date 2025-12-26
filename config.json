@@ -1,3 +1,5 @@
 {
-  "soundDevice": "plughw:3,0"
+  "soundDevice": "plughw:3,0",
+  "headsetVolume": 70,
+  "micVolume": 100
 }

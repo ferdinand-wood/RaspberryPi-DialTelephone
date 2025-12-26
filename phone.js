@@ -61,6 +61,13 @@ class Phone{
         this.speechOutput = new SpeechOutput(this);
         this.speechInput = new SpeechInput(this);
         this.llm = new LLM(this);
+        
+        // Set initial volume (can be configured via config or environment variable)
+        const initialHeadsetVolume = config.get('headsetVolume') || 50;
+        this.soundOutput.setVolume(parseInt(initialHeadsetVolume));
+        const initialMicVolume = config.get('micVolume') || 80;
+        this.soundOutput.setVolume(70, 'Mic');
+        
         this.ringing = false;
         this.ringStart = null;
         this.randomCallStart = null;
@@ -424,7 +431,7 @@ class Phone{
                         if (waitTime>this.recordPromptDelayMillis){
                             this.recordMessageTimerDate = new Date();
                             // Use configured/default device if present
-                            this.startWebRecording(`./recordings/message.wav`);
+                            this.startRecording(`./recordings/message.wav`);
                             return 'RECORDING_MESSAGE';
                         }
                     }
@@ -495,19 +502,16 @@ class Phone{
                         const introDelay = (typeof this._mailboxIntroDelayMillis === 'number') ? this._mailboxIntroDelayMillis : this.mailboxIntroDelayMillis;
                         // After the intro's duration elapses, start recording
                         if (waitTime>introDelay){
-                            // Record the time when recording starts
-                            this.recordMessageTimerDate = new Date();
-                            // Use a temporary max-recording limit for mailbox recordings
-                            this._recordingMaxMillis = this.mailboxMaximumLengthMillis;
-                            // Log for debugging - indicates mailbox recording start
-                            console.log('Starting mailbox recording');
+                            this.recordMessageTimerDate = new Date();  // Record the time when recording starts
+                            this._recordingMaxMillis = this.mailboxMaximumLengthMillis;                             // Use a temporary max-recording limit for mailbox recordings
+                            console.log('Starting mailbox recording');   // Log for debugging - indicates mailbox recording start
                             // Start recording to the mailbox file (shared recording state will handle stop)
                             // Use configured/default device if present
-                            this.startWebRecording(this.getTimestampedFilename('mailbox'));
-                            // Clear the dynamic intro delay now that it's been used
-                            this._mailboxIntroDelayMillis = null;
-                            // Reuse the shared recording state for mailbox recordings
-                            return 'RECORDING_MESSAGE';
+                            this.startRecording(this.getTimestampedFilename('mailbox'), { 
+                                allowOverwrite: false 
+                            });
+                            this._mailboxIntroDelayMillis = null;  // Clear the dynamic intro delay now that it's been used
+                            return 'RECORDING_MESSAGE';  // Reuse the shared recording state for mailbox recordings
                         }
                     }
                     // Continue playing the intro until the delay expires or handset replaced
@@ -675,7 +679,7 @@ class Phone{
                         if (waitTime>this.recordPromptDelayMillis){
                             this.questionMessageTimer = new Date();
                             // Use configured/default device if present
-                            this.startWebRecording(`./recordings/question.wav`);
+                            this.startRecording(`./recordings/question.wav`);
                             return 'RECORDING_QUESTION';
                         }
                     }
@@ -784,20 +788,54 @@ class Phone{
         return;
     }
 
-      // Start recording via web UI (accept optional options object e.g. { device: 'plughw:3,0' })
-    startWebRecording(filename, opts = {}) {
+      // Start recording via web UI (accept optional options object e.g. { device: 'plughw:3,0', allowOverwrite: true })
+    startRecording(filename, opts = {}) {
+        // Check if overwriting is allowed (default: true for backward compatibility)
+        const allowOverwrite = opts.allowOverwrite !== undefined ? opts.allowOverwrite : true;
+        
+        // Check if file exists and overwriting is not allowed - generate unique filename
+        if (!allowOverwrite && fs.existsSync(filename)) {
+            console.warn(`WARNING: File ${filename} already exists. Generating unique filename...`);
+            const path = require('path');
+            const dir = path.dirname(filename);
+            const ext = path.extname(filename);
+            const base = path.basename(filename, ext);
+            
+            let attempts = 0;
+            let uniqueFilename = filename;
+            
+            // Try up to 100 times to find a unique filename
+            while (fs.existsSync(uniqueFilename) && attempts < 100) {
+                // Generate a 6-digit random string
+                const randomStr = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+                uniqueFilename = path.join(dir, `${base}_${randomStr}${ext}`);
+                attempts++;
+            }
+            
+            if (fs.existsSync(uniqueFilename)) {
+                console.error(`ERROR: Could not generate unique filename after ${attempts} attempts.`);
+                return false;
+            }
+            
+            console.log(`Using unique filename: ${uniqueFilename}`);
+            filename = uniqueFilename;
+        }
+        
         // Determine device: explicit option -> configured default -> env var -> undefined
         const device = opts.device || config.get('soundDevice') || process.env.SOUND_DEVICE;
         if (device){
+          console.log(`Starting recording with device: ${device}`);
           this.soundInput.startRecording(filename, { device });
         } else {
+          console.warn('WARNING: No sound device configured. Using system default device for recording.');
           this.soundInput.startRecording(filename, {});
         }
         this.recording = true;
+        return true;
     }
 
     // Stop recording via web UI and return length in ms (or null)
-    stopWebRecording() {
+    stopRecording() {
         this.soundInput.stopRecording();
         this.recording = false;
         return this.soundInput.getRecordingLengthInMillis();

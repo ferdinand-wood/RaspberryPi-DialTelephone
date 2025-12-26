@@ -99,9 +99,9 @@ app.post('/startRecording', (req, res) => {
   const device = req.body.device || config.get('soundDevice') || process.env.SOUND_DEVICE;
   try {
     if (device) {
-      phone.startWebRecording(filename, { device });
+      phone.startRecording(filename, { device });
     } else {
-      phone.startWebRecording(filename);
+      phone.startRecording(filename);
     }
     res.json({ ok: true, filename, device: device || null });
   } catch (err) {
@@ -113,7 +113,7 @@ app.post('/startRecording', (req, res) => {
 // Stop a recording (returns JSON with length)
 app.post('/stopRecording', (req, res) => {
   try {
-    const lengthInMs = phone.stopWebRecording();
+    const lengthInMs = phone.stopRecording();
     res.json({ ok: true, lengthInMs });
   } catch (err) {
     console.error(`Stop recording failed: ${err}`);
