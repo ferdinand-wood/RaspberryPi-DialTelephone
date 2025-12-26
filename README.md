@@ -1,3 +1,22 @@
+# Adaptations for Ferdinand
+## hardware cable connections
+### handset picked up
+The handset picked-up state is detected by a switch in the phone. The switch is closed when the handset is picked-up and open when the handset is replaced.
+* pin connections at phone see image below
+![handset_picked_up](images/phone_handset_pins.jpg)
+* PLUS -> 3.3V at raspberry pi
+* GPIO -> raspberry Pi GPIO24
+### dial wheel
+![dial wheel cables](images/phone_dial_wheel_cables.jpg)
+When the dial wheel is in rest position, the switch is open. Otherwise the switch is closed. This can trigger the dial mode in the algorithm.
+* pin connection at phone: 
+
+### dial active
+### dial pulse
+
+
+
+
 # Raspberry Pi 
 ![Red Phone](images/Phone%20and%20Exchange.jpg)
 
