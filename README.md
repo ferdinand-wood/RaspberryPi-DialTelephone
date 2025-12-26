@@ -3,13 +3,17 @@
 ### handset picked up
 The handset picked-up state is detected by a switch in the phone. The switch is closed when the handset is picked-up and open when the handset is replaced.
 * pin connections at phone see image below
-![handset_picked_up](images/phone_handset_pins.jpg)
+<img src="images/phone_handset_pins.jpg" alt="handset_picked_up" width="400"/>
 * PLUS -> 3.3V at raspberry pi
-* GPIO -> raspberry Pi GPIO24
+* GPIO -> raspberry Pi GPIO18
 ### dial wheel
-![dial wheel cables](images/phone_dial_wheel_cables.jpg)
-When the dial wheel is in rest position, the switch is open. Otherwise the switch is closed. This can trigger the dial mode in the algorithm.
-* pin connection at phone: 
+<img src="images/phone_dial_wheel_cables.jpg" alt="dial wheel cables" width="400"/>
+When the dial wheel is in rest position, the dial active switch is open. Otherwise the switch is closed. This can trigger the dial mode in the algorithm.
+* pin connection of dial active switch at phone: white -> PLUS, brown -> GPIO
+* RaspberryPi connection: PLUS -> 3.3V at RaspberryPi, GPIO -> RaspberryPi GPIO24
+The dial pulse connection is to count the wheel pulses to deduct the dialed number
+* pin connection of dial wheel pulse at phone: yellow -> PLUS, greeen -> GPIO
+* RaspberryPi connection: PLUS -> 3.3V at RaspberryPi, GPIO -> RaspberryPi GPIO23
 
 ### dial active
 ### dial pulse
