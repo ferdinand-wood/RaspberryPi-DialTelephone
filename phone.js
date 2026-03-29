@@ -902,7 +902,8 @@ class Phone{
     }
 
 
-    dialPulse(){
+    getState() {
+        return this.state;
     }
 
     startRinging()
