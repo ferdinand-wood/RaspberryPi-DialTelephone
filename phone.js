@@ -565,13 +565,16 @@ class Phone{
                 'Timer tick': (date) => {
                     // Stop recording and playback, clear variables
                     this.soundOutput.stopPlayback();
+                    console.log(`playback stopped`);
                     this.soundInput.stopRecording();
+                    console.log(`recording stopped`);
                     this.recordingStartTime = null;
                     this.mailboxWaitStartTime = null;
                     this._mailboxIntroDelayMillis = null;
                     this._introStartTime = null;
                     this._recordingMaxMillis = null;
                     this.ringer.ding();
+                    console.log(`ding`);
                     return 'REST';
                 }
             },

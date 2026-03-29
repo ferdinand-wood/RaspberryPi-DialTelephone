@@ -44,9 +44,9 @@ class SoundInput {
           this.bytesWritten += chunk.length;
           this._dataEventCount += 1;
           // Log first few events quickly then periodically
-          if (this._dataEventCount <= 10 || this._dataEventCount % 100 === 0) {
-            console.log(`Mic data events: ${this._dataEventCount}, bytes written so far: ${this.bytesWritten}`);
-          }
+          // if (this._dataEventCount <= 10 || this._dataEventCount % 100 === 0) {
+          //   console.log(`Mic data events: ${this._dataEventCount}, bytes written so far: ${this.bytesWritten}`);
+          // }
         } catch (err) {
           console.error(`Error processing data chunk: ${err}`);
         }
