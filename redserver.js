@@ -4,6 +4,31 @@ const app = express();
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+const phoneLogs = [];
+const maxPhoneLogs = 300;
+
+function addPhoneLog(level, ...args) {
+  const ts = new Date().toISOString();
+  const text = args.map(a => {
+    if (typeof a === 'string') return a;
+    try { return JSON.stringify(a); } catch (e) { return String(a); }
+  }).join(' ');
+  const line = `[${ts}] ${level.toUpperCase()}: ${text}`;
+  phoneLogs.push(line);
+  if (phoneLogs.length > maxPhoneLogs) phoneLogs.shift();
+}
+
+const originalLog = console.log;
+const originalError = console.error;
+console.log = (...args) => {
+  addPhoneLog('log', ...args);
+  originalLog(...args);
+};
+console.error = (...args) => {
+  addPhoneLog('error', ...args);
+  originalError(...args);
+};
+
 const fs = require('fs');
 const Phone = require('./phone');
 const config = require('./helpers/config');
@@ -119,6 +144,12 @@ app.get('/status', (req, res) => {
     recording: phone.recording,
     handsetRest: phone.handsetSwitch.handsetOnPhone()
   });
+});
+
+// Get recent phone console logs (including phone.js internal logs)
+app.get('/phoneLogs', (req, res) => {
+  res.json(phoneLogs.slice(-maxPhoneLogs));
+});
 });
 
 // Get recordings file list

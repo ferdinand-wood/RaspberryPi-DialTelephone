@@ -198,6 +198,22 @@
       }
     }
 
+    async function fetchPhoneLogs(){
+      try {
+        const resp = await fetch('/phoneLogs');
+        const items = await resp.json();
+        if(!Array.isArray(items)){
+          appendLog('Unexpected /phoneLogs response');
+          return;
+        }
+        const logs = items.join('\n');
+        consoleOutput.innerText = logs;
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      } catch (err){
+        appendLog(`Failed to fetch phone logs: ${err}`);
+      }
+    }
+
     async function updateStatus() {
       try {
         const resp = await fetch('/status');
@@ -212,6 +228,7 @@
         appendLog(`Failed to fetch status: ${err}`);
       }
       await fetchRecordings();
+      await fetchPhoneLogs();
     }
 
     startBtn.addEventListener('click', async () => {
