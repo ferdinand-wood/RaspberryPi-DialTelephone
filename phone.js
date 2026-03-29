@@ -731,7 +731,7 @@ class Phone{
                     }
                     return 'RECORDING_QUESTION';
                 }
-            }
+            },
             RECORDING_TIMEOUT: {
                 'Handset replaced': () => {
                     this.ringer.ding();
