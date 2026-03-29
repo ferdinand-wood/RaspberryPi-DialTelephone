@@ -150,7 +150,6 @@ app.get('/status', (req, res) => {
 app.get('/phoneLogs', (req, res) => {
   res.json(phoneLogs.slice(-maxPhoneLogs));
 });
-});
 
 // Get recordings file list
 app.get('/recordings', (req, res) => {
