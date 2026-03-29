@@ -858,10 +858,10 @@ class Phone{
     }
 
     // Stop recording via web UI and return length in ms (or null)
-    async stopRecording(timeoutMs = 5000) {
-        const length = await this.soundInput.stopRecording(timeoutMs);
+    stopRecording() {
+        this.soundInput.stopRecording();
         this.recording = false;
-        return length;
+        return this.soundInput.getRecordingLengthInMillis();
     }
     
     acceptMessage(message){

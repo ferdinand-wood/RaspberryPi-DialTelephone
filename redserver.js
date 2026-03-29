@@ -127,9 +127,9 @@ app.post('/startRecording', (req, res) => {
 });
 
 // Stop a recording (returns JSON with length)
-app.post('/stopRecording', async (req, res) => {
+app.post('/stopRecording', (req, res) => {
   try {
-    const lengthInMs = await phone.stopRecording();
+    const lengthInMs = phone.stopRecording();
     res.json({ ok: true, lengthInMs });
   } catch (err) {
     console.error(`Stop recording failed: ${err}`);
@@ -192,6 +192,7 @@ app.get('/diskSpace', (req, res) => {
     const usedBytes = used * 1024;
     res.json({ ok: true, available: availBytes, used: usedBytes, total: totalBytes });
   });
+});
 });
 
 // Download a recording file
