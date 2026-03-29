@@ -547,7 +547,7 @@ class Phone{
                         const maxLen = this._recordingMaxMillis || this.recordMaximumLengthMillis;
                         // If we've exceeded the selected max recording length, stop
                         if (waitTime>maxLen){
-                            this.soundInput.stopRecording();
+                            this.stopRecording();
                             this.ringer.ding();
                             // Clear temp mailbox limit if it was set
                             this._recordingMaxMillis = null;
@@ -565,16 +565,13 @@ class Phone{
                 'Timer tick': (date) => {
                     // Stop recording and playback, clear variables
                     this.soundOutput.stopPlayback();
-                    console.log(`playback stopped`);
-                    this.soundInput.stopRecording();
-                    console.log(`recording stopped`);
+                    this.stopRecording();
                     this.recordingStartTime = null;
                     this.mailboxWaitStartTime = null;
                     this._mailboxIntroDelayMillis = null;
                     this._introStartTime = null;
                     this._recordingMaxMillis = null;
                     this.ringer.ding();
-                    console.log(`ding`);
                     return 'REST';
                 }
             },
@@ -714,9 +711,9 @@ class Phone{
                 }
             },
             RECORDING_QUESTION:{
-                'Handset replaced': () => { 
-                    this.ringer.ding(); 
-                    this.soundInput.stopRecording();
+                'Handset replaced': () => {
+                    this.ringer.ding();
+                    this.stopRecording();
                     this.speechInput.startSpeechDecode(`./recordings/question.wav`);
                     this.questionMessageTimer = new Date();
                     return 'DOING_SPEECH_TO_TEXT'; 
@@ -726,7 +723,7 @@ class Phone{
                     if(this.questionMessageTimer){
                         let waitTime = date - this.questionMessageTimer;
                         if (waitTime>this.recordMaximumLengthMillis){
-                            this.soundInput.stopRecording();
+                            this.stopRecording();
                             this.ringer.ding();
                             this.recordingTimeoutStart = new Date();
                             return 'RECORDING_TIMEOUT';
@@ -734,7 +731,7 @@ class Phone{
                     }
                     return 'RECORDING_QUESTION';
                 }
-            },
+            }
             RECORDING_TIMEOUT: {
                 'Handset replaced': () => {
                     this.ringer.ding();

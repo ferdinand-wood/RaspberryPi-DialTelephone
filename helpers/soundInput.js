@@ -91,6 +91,7 @@ class SoundInput {
       this.filename = filename;
       this.recordingLength = null;
       this.recordingStartDate = new Date();
+      this._isRecording = true;
       this.mic.start();
     }
 
@@ -146,10 +147,15 @@ class SoundInput {
 
       this.outputFileStream = null;
       this.filename = null;
+      this._isRecording = false;
     }
 
     getRecordingLengthInMillis(){
       return this.recordingLengthInMillis;
+    }
+
+    isRecording(){
+      return !!this._isRecording;
     }
 
     getBytesWritten(){
@@ -165,6 +171,7 @@ class SoundInput {
       this.recordingStartDate = null;
       this.bytesWritten = 0;
       this._dataEventCount = 0;
+      this._isRecording = false;
     }
 }
 
