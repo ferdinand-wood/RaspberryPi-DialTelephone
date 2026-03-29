@@ -450,8 +450,7 @@ class Phone{
                 // Start recording immediately when handset is picked up
                 'Handset replaced': () => {
                     // User hung up before mailbox flow started
-                    this.recordingStartTime = null;
-                    return 'REST';
+                    return 'MAILBOX_END';
                 },
                 'Timer tick': (date) => {
                     // Start recording immediately
@@ -469,9 +468,7 @@ class Phone{
                 // Initialize timer for mailbox flow
                 'Handset replaced': () => {
                     // User hung up before mailbox flow started
-                    this.recordingStartTime = null;
-                    this.mailboxWaitStartTime = null;
-                    return 'REST';
+                    return 'MAILBOX_END';
                 },
                 'Timer tick': (date) => {
                     // Set the timer and immediately transition to MAILBOX_WAIT
@@ -482,10 +479,7 @@ class Phone{
 
             MAILBOX_WAIT: {
                 'Handset replaced': () => {
-                    this.soundInput.stopRecording();
-                    this.recordingStartTime = null;
-                    this.mailboxWaitStartTime = null;
-                    return 'REST';
+                    return 'MAILBOX_END';
                 },
                 'Timer tick': (date) => {
                     if(!this.mailboxWaitStartTime) return 'MAILBOX_WAIT';
@@ -518,13 +512,7 @@ class Phone{
                 // If the handset is replaced during the intro, stop playback and abort
                 'Handset replaced': () => {
                     // cancelled during intro
-                    this.soundOutput.stopPlayback();
-                    this.soundInput.stopRecording();
-                    // Clear any dynamically computed intro delay
-                    this._mailboxIntroDelayMillis = null;
-                    this._introStartTime = null;
-                    this.recordingStartTime = null;
-                    return 'REST';
+                    return 'MAILBOX_END';
                 },
                 'Timer tick': (date) => {
                     // Only proceed if we have the intro start timestamp
@@ -549,13 +537,7 @@ class Phone{
             RECORDING_MESSAGE:{
                 // When handset is replaced while recording, stop recording and clear mailbox temp limits
                 'Handset replaced': () => { 
-                    this.ringer.ding(); 
-                    this.soundInput.stopRecording();
-                    this.recordMessageCallStart = null;
-                    this.recordingStartTime = null;
-                    // clear any temporary recording limits (e.g., mailbox)
-                    this._recordingMaxMillis = null;
-                    return 'REST'; 
+                    return 'MAILBOX_END'; 
                 },
 
                 'Timer tick': (date) => {
@@ -577,6 +559,20 @@ class Phone{
                     }
                     // Continue recording
                     return 'RECORDING_MESSAGE';
+                }
+            },
+            MAILBOX_END: {
+                'Timer tick': (date) => {
+                    // Stop recording and playback, clear variables
+                    this.soundOutput.stopPlayback();
+                    this.soundInput.stopRecording();
+                    this.recordingStartTime = null;
+                    this.mailboxWaitStartTime = null;
+                    this._mailboxIntroDelayMillis = null;
+                    this._introStartTime = null;
+                    this._recordingMaxMillis = null;
+                    this.ringer.ding();
+                    return 'REST';
                 }
             },
             START_RANDOM_CALL: {
