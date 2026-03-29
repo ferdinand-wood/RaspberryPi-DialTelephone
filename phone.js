@@ -74,6 +74,8 @@ class Phone{
         this.recordMessageTimerDate = null;
         this.playbackMessageTimerDate = null;
         this.questionMessageTimer = null;
+        this.recordingStartTime = null;
+        this.mailboxWaitStartTime = null;
         this.ringLengthMillis = 10000;
         this.randomCallTimeoutMillis = 10000;
         this.incomingSpeechDelayMillis = 1000;
@@ -107,7 +109,7 @@ class Phone{
                 'Handset picked up': () => { 
                     this.ringer.ding();
                     // return 'PRE_DIAL_TONE'; 
-                    return 'MAILBOX_INTRO'; // go directly to mailbox without waiting for the dial wheel
+                    return 'START_RECORDING_MESSAGE'; // go directly to mailbox without waiting for the dial wheel
                 },
                 'Handset replaced': () => { 
                     this.soundOutput.stopPlayback();
@@ -443,30 +445,55 @@ class Phone{
             },
 
             // Mailbox flow: after handset pickup
-            // The flow is: pickup -> MAILBOX_INTRO -> MAILBOX_WAIT -> MAILBOX_INTRO_PLAYING -> RECORDING_MESSAGE
+            // The flow is: pickup -> START_RECORDING_MESSAGE -> MAILBOX_INTRO -> MAILBOX_WAIT -> MAILBOX_INTRO_PLAYING -> RECORDING_MESSAGE
+            START_RECORDING_MESSAGE: {
+                // Start recording immediately when handset is picked up
+                'Handset replaced': () => {
+                    // User hung up before mailbox flow started
+                    this.recordingStartTime = null;
+                    return 'REST';
+                },
+                'Timer tick': (date) => {
+                    // Start recording immediately
+                    this.recordingStartTime = new Date();
+                    this._recordingMaxMillis = this.mailboxMaximumLengthMillis;
+                    console.log('Starting mailbox recording early');
+                    this.startRecording(this.getTimestampedFilename('mailbox'), { 
+                        allowOverwrite: false 
+                    });
+                    return 'MAILBOX_INTRO';
+                }
+            },
+
             MAILBOX_INTRO: {
                 // Initialize timer for mailbox flow
                 'Handset replaced': () => {
                     // User hung up before mailbox flow started
-                    this.recordMessageTimerDate = null;
+                    this.recordingStartTime = null;
+                    this.mailboxWaitStartTime = null;
                     return 'REST';
                 },
                 'Timer tick': (date) => {
                     // Set the timer and immediately transition to MAILBOX_WAIT
-                    this.recordMessageTimerDate = new Date();
+                    this.mailboxWaitStartTime = new Date();
                     return 'MAILBOX_WAIT';
                 }
             },
 
             MAILBOX_WAIT: {
-                'Handset replaced': () => 'REST',
+                'Handset replaced': () => {
+                    this.soundInput.stopRecording();
+                    this.recordingStartTime = null;
+                    this.mailboxWaitStartTime = null;
+                    return 'REST';
+                },
                 'Timer tick': (date) => {
-                    if(!this.recordMessageTimerDate) return 'MAILBOX_WAIT';
+                    if(!this.mailboxWaitStartTime) return 'MAILBOX_WAIT';
                     
-                    const waitTime = date - this.recordMessageTimerDate;
+                    const waitTime = date - this.mailboxWaitStartTime;
                     if (waitTime > this.mailboxWaitMillis){
                         const introFile = './sounds/mailbox_ansage.wav';
-                        this.recordMessageTimerDate = new Date();
+                        this._introStartTime = new Date();
                         this.soundOutput.stopPlayback();
                         
                         // Fetch actual intro duration, fallback to configured delay
@@ -492,28 +519,24 @@ class Phone{
                 'Handset replaced': () => {
                     // cancelled during intro
                     this.soundOutput.stopPlayback();
+                    this.soundInput.stopRecording();
                     // Clear any dynamically computed intro delay
                     this._mailboxIntroDelayMillis = null;
+                    this._introStartTime = null;
+                    this.recordingStartTime = null;
                     return 'REST';
                 },
                 'Timer tick': (date) => {
                     // Only proceed if we have the intro start timestamp
-                    if(this.recordMessageTimerDate){
+                    if(this._introStartTime){
                         // Compute elapsed time since intro started
-                        let waitTime = date - this.recordMessageTimerDate;
+                        let waitTime = date - this._introStartTime;
                         // Use computed intro duration if available, otherwise fallback to static
                         const introDelay = (typeof this._mailboxIntroDelayMillis === 'number') ? this._mailboxIntroDelayMillis : this.mailboxIntroDelayMillis;
-                        // After the intro's duration elapses, start recording
+                        // After the intro's duration elapses, transition to recording (already started)
                         if (waitTime>introDelay){
-                            this.recordMessageTimerDate = new Date();  // Record the time when recording starts
-                            this._recordingMaxMillis = this.mailboxMaximumLengthMillis;                             // Use a temporary max-recording limit for mailbox recordings
-                            console.log('Starting mailbox recording');   // Log for debugging - indicates mailbox recording start
-                            // Start recording to the mailbox file (shared recording state will handle stop)
-                            // Use configured/default device if present
-                            this.startRecording(this.getTimestampedFilename('mailbox'), { 
-                                allowOverwrite: false 
-                            });
                             this._mailboxIntroDelayMillis = null;  // Clear the dynamic intro delay now that it's been used
+                            this._introStartTime = null;  // Clear the intro start time
                             return 'RECORDING_MESSAGE';  // Reuse the shared recording state for mailbox recordings
                         }
                     }
@@ -529,6 +552,7 @@ class Phone{
                     this.ringer.ding(); 
                     this.soundInput.stopRecording();
                     this.recordMessageCallStart = null;
+                    this.recordingStartTime = null;
                     // clear any temporary recording limits (e.g., mailbox)
                     this._recordingMaxMillis = null;
                     return 'REST'; 
@@ -536,8 +560,8 @@ class Phone{
 
                 'Timer tick': (date) => {
                     // Enforce either the mailbox-specific max or the default record max
-                    if(this.recordMessageTimerDate){
-                        let waitTime = date - this.recordMessageTimerDate;
+                    if(this.recordingStartTime){
+                        let waitTime = date - this.recordingStartTime;
                         const maxLen = this._recordingMaxMillis || this.recordMaximumLengthMillis;
                         // If we've exceeded the selected max recording length, stop
                         if (waitTime>maxLen){
@@ -545,6 +569,7 @@ class Phone{
                             this.ringer.ding();
                             // Clear temp mailbox limit if it was set
                             this._recordingMaxMillis = null;
+                            this.recordingStartTime = null;
                             // Start timeout state so we do not jump straight to REST
                             this.recordingTimeoutStart = new Date();
                             return 'RECORDING_TIMEOUT';
