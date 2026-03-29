@@ -127,9 +127,9 @@ app.post('/startRecording', (req, res) => {
 });
 
 // Stop a recording (returns JSON with length)
-app.post('/stopRecording', (req, res) => {
+app.post('/stopRecording', async (req, res) => {
   try {
-    const lengthInMs = phone.stopRecording();
+    const lengthInMs = await phone.stopRecording();
     res.json({ ok: true, lengthInMs });
   } catch (err) {
     console.error(`Stop recording failed: ${err}`);

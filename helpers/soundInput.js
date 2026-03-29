@@ -95,15 +95,14 @@ class SoundInput {
       this.mic.start();
     }
 
-    stopRecording(){
+    async stopRecording(timeoutMs = 5000){
 
       if(!this.mic){
         console.log("***** Stop recording called before start recording");
-        return;
+        return this.recordingLengthInMillis;
       }
 
       let currentDate = new Date();
-
       this.recordingLengthInMillis = currentDate - this.recordingStartDate;
 
       console.log(`Recording to ${this.filename} complete ${this.recordingLengthInMillis} milliseconds long`);
@@ -122,32 +121,59 @@ class SoundInput {
         }
       } catch (err){ console.error(`Error unpiping streams: ${err}`); }
 
+      const fileStream = this.outputFileStream;
+      const waitForFinish = new Promise((resolve) => {
+        let resolved = false;
+        const done = (success) => {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timer);
+          resolve(success);
+        };
+
+        const timer = setTimeout(() => {
+          done(false);
+        }, timeoutMs);
+
+        if (!fileStream || fileStream.writableEnded) {
+          done(true);
+        } else {
+          fileStream.once('finish', () => done(true));
+          fileStream.once('error', () => done(false));
+        }
+      });
+
       try {
         if (this.outputFileStream){
           this.outputFileStream.end();
         }
       } catch (err) { console.error(`Error ending output stream: ${err}`); }
 
+      const finished = await waitForFinish;
+      if (!finished) {
+        console.warn('Warning: file write did not finish before timeout');
+      }
+
       // Destroy mic input stream and clear references
       try { if (this.micInputStream) this.micInputStream.destroy(); } catch (err) {}
       this.micInputStream = null;
       this.mic = null;
 
-      // After a short delay print final file size if available
-      setTimeout(() => {
-        try {
-          if (this.filename && fs.existsSync(this.filename)){
-            const stats = fs.statSync(this.filename);
-            console.log(`Final file size for ${this.filename}: ${stats.size} bytes`);
-          }
-        } catch (err) {
-          // ignore
+      // Print final file size if available (or from stale?)
+      try {
+        if (this.filename && fs.existsSync(this.filename)){
+          const stats = fs.statSync(this.filename);
+          console.log(`Final file size for ${this.filename}: ${stats.size} bytes`);
         }
-      }, 250);
+      } catch (err) {
+        // ignore
+      }
 
       this.outputFileStream = null;
       this.filename = null;
       this._isRecording = false;
+
+      return this.recordingLengthInMillis;
     }
 
     getRecordingLengthInMillis(){
