@@ -139,3 +139,21 @@ app.get('/recordings', (req, res) => {
     res.json(items);
   });
 });
+
+// Download a recording file
+app.get('/recordings/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).send('Invalid filename');
+  }
+  const filePath = `${__dirname}/recordings/${filename}`;
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error(`Error downloading file ${filePath}: ${err}`);
+      if (!res.headersSent) {
+        res.status(404).send('File not found');
+      }
+    }
+  });
+});
+});

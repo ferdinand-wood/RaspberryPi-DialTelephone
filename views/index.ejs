@@ -149,12 +149,15 @@
         for (const item of items){
           const li = document.createElement('li');
           li.className = 'list-group-item d-flex justify-content-between align-items-center';
-          const fileSpan = document.createElement('span');
-          fileSpan.innerText = item.name;
+          const fileLink = document.createElement('a');
+          fileLink.href = `/recordings/${encodeURIComponent(item.name)}`;
+          fileLink.target = '_blank';
+          fileLink.rel = 'noopener';
+          fileLink.innerText = item.name;
           const sizeSpan = document.createElement('span');
           sizeSpan.className = 'badge badge-primary badge-pill';
           sizeSpan.innerText = `${item.size.toLocaleString()} bytes`;
-          li.appendChild(fileSpan);
+          li.appendChild(fileLink);
           li.appendChild(sizeSpan);
           ul.appendChild(li);
         }
