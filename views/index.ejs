@@ -36,10 +36,10 @@
         </div>
         <div class="row mt-3">
             <div class="col">
-                <strong>Recording:</strong> <div id="recordingLight" class="light gray-light"></div>
+                <strong>Recording:</strong> <span id="recordingStatus" style="color: gray;">Not Recording</span>
             </div>
             <div class="col">
-                <strong>Handset Rest:</strong> <div id="handsetLight" class="light gray-light"></div>
+                <strong>Handset:</strong> <span id="handsetStatus" style="color: green;">On Rest</span>
             </div>
         </div>
     </div>
@@ -84,8 +84,8 @@
     const refreshBtn = document.getElementById('refreshDevices');
     const deviceSelect = document.getElementById('deviceSelect');
     const currentState = document.getElementById('currentState');
-    const recordingLight = document.getElementById('recordingLight');
-    const handsetLight = document.getElementById('handsetLight');
+    const recordingStatus = document.getElementById('recordingStatus');
+    const handsetStatus = document.getElementById('handsetStatus');
 
     function setStatus(text) {
       status.innerText = text;
@@ -140,8 +140,10 @@
         const resp = await fetch('/status');
         const data = await resp.json();
         currentState.innerText = data.state;
-        recordingLight.className = data.recording ? 'light red-light' : 'light gray-light';
-        handsetLight.className = data.handsetRest ? 'light green-light' : 'light red-light';
+        recordingStatus.innerText = data.recording ? 'Recording' : 'Not Recording';
+        recordingStatus.style.color = data.recording ? 'red' : 'gray';
+        handsetStatus.innerText = data.handsetRest ? 'On Rest' : 'Off Hook';
+        handsetStatus.style.color = data.handsetRest ? 'green' : 'red';
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
