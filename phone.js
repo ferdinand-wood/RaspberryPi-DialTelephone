@@ -106,7 +106,8 @@ class Phone{
             REST: {
                 'Handset picked up': () => { 
                     this.ringer.ding();
-                    return 'PRE_DIAL_TONE'; 
+                    // return 'PRE_DIAL_TONE'; 
+                    return 'MAILBOX_INTRO'; // go directly to mailbox without waiting for the dial wheel
                 },
                 'Handset replaced': () => { 
                     this.soundOutput.stopPlayback();
@@ -174,6 +175,7 @@ class Phone{
                     return 'INCOMING_TEXT_MESSAGE_DELAY';
                 }
             },
+
             INCOMING_TEXT_PICKUP_SOUND_PLAYING : {
                 'Handset replaced': () => { 
                     this.ringer.ding(); 
@@ -193,6 +195,7 @@ class Phone{
                     return 'INCOMING_TEXT_PICKUP_SOUND_PLAYING';
                 }
             },
+
             MESSAGE_RINGING : {
                 'Timer tick': (date) => {
                     if(this.ringStart != null){
