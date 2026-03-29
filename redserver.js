@@ -4,6 +4,7 @@ const app = express();
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+const fs = require('fs');
 const Phone = require('./phone');
 const config = require('./helpers/config');
 
@@ -117,5 +118,24 @@ app.get('/status', (req, res) => {
     state: phone.getState(),
     recording: phone.recording,
     handsetRest: phone.handsetSwitch.handsetOnPhone()
+  });
+});
+
+// Get recordings file list
+app.get('/recordings', (req, res) => {
+  const dir = './recordings';
+  fs.readdir(dir, { withFileTypes: true }, (err, files) => {
+    if (err) {
+      console.error(`Failed to read recordings directory: ${err}`);
+      return res.status(500).json([]);
+    }
+    const items = files
+      .filter(f => f.isFile())
+      .map(f => {
+        const stat = fs.statSync(`${dir}/${f.name}`);
+        return { name: f.name, size: stat.size };
+      })
+      .sort((a, b) => b.name.localeCompare(a.name));
+    res.json(items);
   });
 });

@@ -44,6 +44,13 @@
         </div>
     </div>
 
+    <div class="container mb-4" id="recordingsContainer">
+        <h5>Recordings</h5>
+        <div id="recordingsList">
+            <span>Loading recordings...</span>
+        </div>
+    </div>
+
     <div class="container mb-4">
         <h5>Microphone</h5>
         <div class="form-row mb-2">
@@ -86,6 +93,7 @@
     const currentState = document.getElementById('currentState');
     const recordingStatus = document.getElementById('recordingStatus');
     const handsetStatus = document.getElementById('handsetStatus');
+    const recordingsList = document.getElementById('recordingsList');
 
     function setStatus(text) {
       status.innerText = text;
@@ -123,6 +131,41 @@
       fetchConfigAndDevices();
     });
 
+    async function fetchRecordings(){
+      try {
+        const resp = await fetch('/recordings');
+        const items = await resp.json();
+        if(!Array.isArray(items)){
+          recordingsList.innerText = 'Failed to load recordings';
+          return;
+        }
+        if(items.length === 0){
+          recordingsList.innerHTML = '<p>No recordings found</p>';
+          return;
+        }
+
+        const ul = document.createElement('ul');
+        ul.className = 'list-group';
+        for (const item of items){
+          const li = document.createElement('li');
+          li.className = 'list-group-item d-flex justify-content-between align-items-center';
+          const fileSpan = document.createElement('span');
+          fileSpan.innerText = item.name;
+          const sizeSpan = document.createElement('span');
+          sizeSpan.className = 'badge badge-primary badge-pill';
+          sizeSpan.innerText = `${item.size.toLocaleString()} bytes`;
+          li.appendChild(fileSpan);
+          li.appendChild(sizeSpan);
+          ul.appendChild(li);
+        }
+        recordingsList.innerHTML = '';
+        recordingsList.appendChild(ul);
+      } catch (err){
+        console.error('Failed to fetch recordings:', err);
+        recordingsList.innerText = 'Error loading recordings';
+      }
+    }
+
     async function fetchConfigAndDevices(){
       try{
         const resp = await fetch('/config');
@@ -147,6 +190,7 @@
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
+      await fetchRecordings();
     }
 
     startBtn.addEventListener('click', async () => {

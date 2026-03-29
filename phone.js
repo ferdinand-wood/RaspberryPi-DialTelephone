@@ -571,7 +571,6 @@ class Phone{
                     this._mailboxIntroDelayMillis = null;
                     this._introStartTime = null;
                     this._recordingMaxMillis = null;
-                    this.ringer.ding();
                     return 'REST';
                 }
             },
