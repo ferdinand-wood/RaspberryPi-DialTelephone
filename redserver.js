@@ -170,6 +170,31 @@ app.get('/recordings', (req, res) => {
   });
 });
 
+// Get free disk space
+app.get('/diskSpace', (req, res) => {
+  const { exec } = require('child_process');
+  exec('df -k .', (err, stdout, stderr) => {
+    if (err) {
+      console.error(`Failed to get disk space: ${err}`);
+      return res.status(500).json({ ok: false, err: String(err) });
+    }
+    const lines = stdout.trim().split('\n');
+    if (lines.length < 2) {
+      return res.status(500).json({ ok: false, err: 'Unexpected df output' });
+    }
+    const parts = lines[1].trim().split(/\s+/);
+    // df output: Filesystem 1K-blocks Used Available Use% Mounted on
+    const available = Number(parts[3] || 0);
+    const total = Number(parts[1] || 0);
+    const used = Number(parts[2] || 0);
+    const availBytes = available * 1024;
+    const totalBytes = total * 1024;
+    const usedBytes = used * 1024;
+    res.json({ ok: true, available: availBytes, used: usedBytes, total: totalBytes });
+  });
+});
+});
+
 // Download a recording file
 app.get('/recordings/:filename', (req, res) => {
   const filename = req.params.filename;

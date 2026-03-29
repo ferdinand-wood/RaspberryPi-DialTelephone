@@ -75,6 +75,14 @@
     </div>
 
     <div class="container mb-4">
+        <h5>Disk Space</h5>
+        <div class="progress" style="height: 24px;">
+            <div id="diskSpaceBar" class="progress-bar" role="progressbar" style="width:0%" aria-valuemin="0" aria-valuemax="100">Loading...</div>
+        </div>
+        <div class="mt-2" id="diskSpaceText">Loading disk space...</div>
+    </div>
+
+    <div class="container mb-4">
         <h5>Console Output</h5>
         <div id="consoleOutput" style="height:220px; overflow-y:auto; border:1px solid #ccc; background:#f8f9fa; padding:8px; font-family: monospace; white-space: pre-wrap;"></div>
     </div>
@@ -229,6 +237,30 @@
       }
       await fetchRecordings();
       await fetchPhoneLogs();
+      await fetchDiskSpace();
+    }
+
+    async function fetchDiskSpace() {
+      try {
+        const resp = await fetch('/diskSpace');
+        const data = await resp.json();
+        if (!data.ok) {
+          document.getElementById('diskSpaceText').innerText = 'Unable to read disk space';
+          return;
+        }
+        const pct = data.total > 0 ? (data.used * 100 / data.total) : 0;
+        const availPct = 100 - pct;
+        const bar = document.getElementById('diskSpaceBar');
+        bar.style.width = `${pct.toFixed(1)}%`;
+        bar.innerText = `${pct.toFixed(1)}% used`;
+        bar.setAttribute('aria-valuenow', pct.toFixed(1));
+
+        document.getElementById('diskSpaceText').innerText =
+          `Total: ${(data.total/1024/1024).toFixed(2)} MiB, Used: ${(data.used/1024/1024).toFixed(2)} MiB, Free: ${(data.available/1024/1024).toFixed(2)} MiB (${availPct.toFixed(1)}% free)`;
+      } catch (err) {
+        document.getElementById('diskSpaceText').innerText = 'Error reading disk space';
+        appendLog(`fetchDiskSpace failed: ${err}`);
+      }
     }
 
     startBtn.addEventListener('click', async () => {
