@@ -193,7 +193,6 @@ app.get('/diskSpace', (req, res) => {
     res.json({ ok: true, available: availBytes, used: usedBytes, total: totalBytes });
   });
 });
-});
 
 // Download a recording file
 app.get('/recordings/:filename', (req, res) => {
