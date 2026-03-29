@@ -74,6 +74,11 @@
         </div>
     </div>
 
+    <div class="container mb-4">
+        <h5>Console Output</h5>
+        <div id="consoleOutput" style="height:220px; overflow-y:auto; border:1px solid #ccc; background:#f8f9fa; padding:8px; font-family: monospace; white-space: pre-wrap;"></div>
+    </div>
+
     <div id="status" class="container mt-2"></div>
 
     <div class="container mt-3">
@@ -94,6 +99,15 @@
     const recordingStatus = document.getElementById('recordingStatus');
     const handsetStatus = document.getElementById('handsetStatus');
     const recordingsList = document.getElementById('recordingsList');
+    const consoleOutput = document.getElementById('consoleOutput');
+
+    function appendLog(line) {
+      if (!consoleOutput) return;
+      const now = new Date();
+      const prefix = `[${now.toLocaleTimeString()}] `;
+      consoleOutput.innerText += prefix + line + '\n';
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
 
     function setStatus(text) {
       status.innerText = text;
@@ -135,8 +149,10 @@
       try {
         const resp = await fetch('/recordings');
         const items = await resp.json();
+        appendLog('Fetched recordings list');
         if(!Array.isArray(items)){
           recordingsList.innerText = 'Failed to load recordings';
+          appendLog('Failed to load recordings (invalid response)');
           return;
         }
         if(items.length === 0){
@@ -166,6 +182,7 @@
       } catch (err){
         console.error('Failed to fetch recordings:', err);
         recordingsList.innerText = 'Error loading recordings';
+        appendLog(`Failed to fetch recordings: ${err}`);
       }
     }
 
@@ -192,6 +209,7 @@
         handsetStatus.style.color = data.handsetRest ? 'green' : 'red';
       } catch (err) {
         console.error('Failed to fetch status:', err);
+        appendLog(`Failed to fetch status: ${err}`);
       }
       await fetchRecordings();
     }
@@ -212,6 +230,7 @@
         const j = await resp.json();
         if (j.ok) {
           setStatus(`Recording started: ${j.filename}${j.device ? ' (device: ' + j.device + ')' : ''}`);
+          appendLog(`Recording started: ${j.filename}`);
           // If user asked to save as default, persist
           const saveDefault = document.getElementById('saveDefaultDevice').checked;
           if (saveDefault && selectedDevice){
@@ -238,11 +257,13 @@
           updateStatus();
         } else {
           setStatus(`Error starting recording: ${j.err}`);
+          appendLog(`Error starting recording: ${j.err}`);
           startBtn.disabled = false;
           refreshBtn.disabled = false;
         }
       } catch (err) {
         setStatus(`Network error: ${err}`);
+        appendLog(`Network error (startRecording): ${err}`);
         startBtn.disabled = false;
         refreshBtn.disabled = false;
       }
@@ -257,18 +278,20 @@
             const j = await resp.json();
             if (j.ok) {
             setStatus(`Recording stopped — length ${j.lengthInMs ?? 'unknown'} ms`);
+            appendLog(`Recording stopped — ${j.lengthInMs ?? 'unknown'} ms`);
             startBtn.disabled = false;
             stopBtn.disabled = true;
             refreshBtn.disabled = false;
             updateStatus();
             } else {
             setStatus(`Error stopping recording: ${j.err}`);
+            appendLog(`Error stopping recording: ${j.err}`);
             stopBtn.disabled = false;
             refreshBtn.disabled = false;
             }
         } catch (err) {
             setStatus(`Network error: ${err}`);
-            stopBtn.disabled = false;
+        appendLog(`Network error (stopRecording): ${err}`);
             refreshBtn.disabled = false;
         }
     });
