@@ -14,16 +14,6 @@ app.get('/', (req, res) => {
   res.render("index.ejs", {message:''});
 });
 
-app.get('/ring', (req, res) => {
-  phone.startRinging();
-  res.render("index.ejs", {message:'Phone ringing'});
-});
-
-app.get('/stopRing', (req, res) => {
-  phone.stopRinging();
-  res.render("index.ejs", {message:'Ringing stopped'});
-});
-
 var message = null;
 
 app.post('/sendMessage', (req, res) => {
