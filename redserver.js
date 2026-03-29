@@ -110,3 +110,12 @@ app.post('/stopRecording', (req, res) => {
     res.status(500).json({ ok: false, err: err.message || String(err) });
   }
 });
+
+// Get current phone status
+app.get('/status', (req, res) => {
+  res.json({
+    state: phone.getState(),
+    recording: phone.recording,
+    handsetRest: phone.handsetSwitch.handsetOnPhone()
+  });
+});
