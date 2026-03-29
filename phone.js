@@ -896,6 +896,10 @@ class Phone{
         this.ringer.ding();
     }
 
+    
+    dialPulse(){
+    }
+
 
     getState() {
         return this.state;
