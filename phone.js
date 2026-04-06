@@ -87,9 +87,9 @@ class Phone{
         this.questionMessageDelayMillis = 0;
 
         // Mailbox flow timing (wait a few seconds after pickup, then play intro, then record)
-        this.mailboxWaitMillis = 2000; // wait after handset picked up before playing intro
+        this.mailboxWaitMillis = 1000; // wait after handset picked up before playing intro. Total effective delay includes state transition/heartbeat overhead (~1s)
         this.mailboxIntroDelayMillis = 1000; // wait after intro before starting recording
-        this.mailboxMaximumLengthMillis = 0.5 * 60 * 1000; // max mailbox recording length (20 minutes)
+        this.mailboxMaximumLengthMillis = 20 * 60 * 1000; // max mailbox recording length (20 minutes)
         this.recordingTimeoutMillis = 5000; // grace period after hitting max duration
         this.recordingTimeoutStart = null;
 
